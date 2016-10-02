@@ -36,10 +36,12 @@ DL_QUEUE = deque()
 HOST = "http://localhost:32400"
 SECTIONS = "%s/library/sections/"
 
+
 ####################################################################################################
 def Start():
     ObjectContainer.title1 = NAME
     HTTP.CacheTime = 3600*5
+
 
 ####################################################################################################
 def getMyMAC():
@@ -54,8 +56,8 @@ def getNameFromXML(show, name, default=""):
     else:
         return default
 
-####################################################################################################
 
+####################################################################################################
 def getTivoShowsByIPURL(tivoip, url, dir):
     anchoroffset = 0
     offset = 16
@@ -150,8 +152,8 @@ def getTivoShowsByIPURL(tivoip, url, dir):
 
     return dir
 
-####################################################################################################
 
+####################################################################################################
 @route("/video/tivotogo/createvideoclipobject", container=bool, duration=int)
 def CreateVideoClipObject(url, title, thumb, container = False, summary="", duration=14400000, tagline=""):
     Log.Debug("Starting a thread")
@@ -185,6 +187,7 @@ def CreateVideoClipObject(url, title, thumb, container = False, summary="", dura
         return ObjectContainer(objects = [vco])
 
     return vco
+
 
 ####################################################################################################
 def getTvd():
@@ -233,6 +236,7 @@ def getTvd():
                      "Resources",
                      "tivodecode")
 
+
 ####################################################################################################
 def getCurl():
     if sys.platform != "win32":
@@ -253,8 +257,8 @@ def getCurl():
                          "win",
                          "curl.exe")
 
-####################################################################################################
 
+####################################################################################################
 class MyVideoHandler(BaseHTTPRequestHandler):
 
   def do_HEAD(self):
@@ -305,8 +309,8 @@ class MyVideoHandler(BaseHTTPRequestHandler):
   def do_POST(self):
     Log("Got a Post")
 
-####################################################################################################
 
+####################################################################################################
 def TivoServerThread(ip, port):
   try:
     httpserver = HTTPServer((ip, port), MyVideoHandler)
@@ -317,8 +321,8 @@ def TivoServerThread(ip, port):
   except :
     Log("Server Already Running or port in use")
   
-####################################################################################################
 
+####################################################################################################
 def TivoVideo(count, pathNouns):
   Log("Starting a thread")
   thread.start_new_thread(TivoServerThread, ("127.0.0.1", TIVO_PORT))
@@ -329,7 +333,6 @@ def TivoVideo(count, pathNouns):
 
 
 ####################################################################################################
-
 @route("/video/tivotogo/showcontainer")
 def getShowContainer(url, show_url, title, summary, thumb, tagline, duration):
     oc = ObjectContainer(title2=L(title))
@@ -341,6 +344,7 @@ def getShowContainer(url, show_url, title, summary, thumb, tagline, duration):
                                  duration = duration))
     oc.add(DirectoryObject(key = Callback(downloadLocal, url=show_url, title=title), title = "Download Locally"))
     return oc
+
 
 ####################################################################################################
 def UpdateTTGFolder():
@@ -356,8 +360,8 @@ def UpdateTTGFolder():
     except Exception, e:
         Log("Error Updating TTG Folder: %s" % e)
 
-####################################################################################################
 
+####################################################################################################
 def dlThread():
     global GL_CURL_PID
     global DownloadThread
@@ -398,8 +402,8 @@ def dlThread():
         GL_CURL_PID = 0
     DownloadThread = None
 
-####################################################################################################
 
+####################################################################################################
 @route("/video/tivotogo/downloadlocal")
 def downloadLocal(url, title):
     global DownloadThread
@@ -450,8 +454,8 @@ def downloadLocal(url, title):
 
     return ObjectContainer(header=title2, message=message, title2=title2)
 
-####################################################################################################
 
+####################################################################################################
 def discoverTiVo(oc):
 
     class ZCListener:
@@ -513,8 +517,8 @@ def discoverTiVo(oc):
     serv.close()
     return oc
 
-####################################################################################################
 
+####################################################################################################
 @route("/video/tivotogo/shows")
 def getTivoShows(tivoName="", url="", tivoip="", showName=""):
     if showName == "":
@@ -526,8 +530,8 @@ def getTivoShows(tivoName="", url="", tivoip="", showName=""):
         url = "https://" + tivoip + ":443" + TIVO_LIST_PATH
     return getTivoShowsByIPURL(tivoip, url, oc)
 
-####################################################################################################
 
+####################################################################################################
 @route("/video/tivotogo/getStatus")
 def getStatus(rand, execkill=0):
     global DownloadThread
@@ -551,8 +555,8 @@ def getStatus(rand, execkill=0):
     oc.add(DirectoryObject(key = Callback(getStatus, rand=str(Util.Random())), title = "Refresh"))
     return oc
 
-####################################################################################################
 
+####################################################################################################
 @handler("/video/tivotogo", NAME, thumb="icon-default.jpg", art="art-default.jpg")
 def MainMenu():
 
