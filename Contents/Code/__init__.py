@@ -215,11 +215,14 @@ def CreateVideoClipObject(url, title, thumb, container=False, summary="", durati
 
 
 ################################################################################
-def getTvd():
-    # Lack of a PMS api for a local path means we find the local
-    # plugin resources the hard way duplicating some of Plugin.py
+def getTvd(*args):
+    """Build a tivodecode command line.
+    
+    Lack of a PMS api for a local path means we find the local
+    plugin resources the hard way duplicating some of Plugin.py"""
+
     if sys.platform == "darwin":
-        return path.join(environ["HOME"],
+        tivodecode = path.join(environ["HOME"],
                          "Library",
                          "Application Support",
                          "Plex Media Server",
@@ -235,7 +238,7 @@ def getTvd():
         key = "LOCALAPPDATA"
 
     if sys.platform == "win32":
-        return path.join(environ[key],
+        tivodecode = path.join(environ[key],
                          "Plex Media Server",
                          "Plug-ins",
                          BUNDLE_NAME,
@@ -245,7 +248,7 @@ def getTvd():
                          "tivodecode.exe")
     # Linux 64
     if platform.architecture()[0] == "64bit":
-        return path.join(environ[key],
+        tivodecode = path.join(environ[key],
                          "Plex Media Server",
                          "Plug-ins",
                          BUNDLE_NAME,
@@ -253,7 +256,7 @@ def getTvd():
                          "Resources",
                          "tivodecode.x86_64")
     # Linux 32
-    return path.join(environ[key],
+    tivodecode = path.join(environ[key],
                      "Plex Media Server",
                      "Plug-ins",
                      BUNDLE_NAME,
@@ -261,11 +264,21 @@ def getTvd():
                      "Resources",
                      "tivodecode")
 
+    argv = [
+        tivodecode,
+        "-m", getMyMAC(),
+    ] + list(args)
+
+    Log.Debug("TVD: %s" % " ".join(argv))
+    return argv
+
 
 ################################################################################
-def getCurl():
+def getCurl(url):
+    """Build our curl command line."""
+
     if sys.platform != "win32":
-        return "/usr/bin/curl"
+        curl = "/usr/bin/curl"
 
     if "PLEXLOCALAPPDATA" in environ:
         key = "PLEXLOCALAPPDATA"
@@ -273,7 +286,7 @@ def getCurl():
         key = "LOCALAPPDATA"
 
     if sys.platform == "win32":
-        return path.join(environ[key],
+        curl = path.join(environ[key],
                          "Plex Media Server",
                          "Plug-ins",
                          BUNDLE_NAME,
@@ -281,6 +294,16 @@ def getCurl():
                          "Resources",
                          "win",
                          "curl.exe")
+    argv = [
+        curl,
+        url,
+        "--digest",
+        "-s",
+        "-u", "tivo:" + getMyMAC(),
+        "-c", "/tmp/cookies.txt",
+    ]
+    Log.Debug("CMD: %s" % " ".join(argv))
+    return argv
 
 
 ################################################################################
@@ -303,24 +326,11 @@ class MyVideoHandler(BaseHTTPRequestHandler):
           self.send_response(200)
       self.send_header("Content-type", "video/mpeg2")
       self.end_headers()
-      tvd = getTvd()
-      curl = getCurl()
-      Log.Debug("TVD: %s" % tvd)
-      Log.Debug("CMD: %s %s %s %s %s %s %s %s" % (curl, url, "--digest", "-s", "-u", "tivo:"+getMyMAC(), "-c", "/tmp/cookies.txt"))
-      Log.Debug(" PIPED to: %s %s %s %s" % (tvd, "-m", getMyMAC(), "-"))
+      curlp = Popen(getCurl(url), stdout=PIPE)
+      tvd = getTvd("-")
       if "LD_LIBRARY_PATH" in environ.keys():
         del environ["LD_LIBRARY_PATH"]
-      curlp = Popen([
-          curl,
-          url,
-          "--digest",
-          "-s",
-          "-u", "tivo:" + getMyMAC(),
-          "-c", "/tmp/cookies.txt"],
-          stdout=PIPE)
-      tivodecode = Popen([tvd, "-m", getMyMAC(), "-"],
-                         stdin=curlp.stdout,
-                         stdout=PIPE)
+      tivodecode = Popen(tvd, stdin=curlp.stdout, stdout=PIPE)
       Log("Starting decoder")
       while True:
           data = tivodecode.stdout.read(4192)
@@ -412,17 +422,8 @@ def dlThread():
         else:
             break
         try:
-            tvd = getTvd()
-            curl = getCurl()
-            Log.Debug("CMD: %s \"%s\" %s %s %s %s %s %s" % (
-                curl,
-                url,
-                "--digest",
-                "-s",
-                "-u", "tivo:" + getMyMAC(),
-                "-c", "/tmp/cookies.txt"))
-            Log.Debug(" PIPED to: \"%s\" %s %s %s \"%s\" %s" % (
-                tvd, "-m", getMyMAC(), "-o", fileName, "-"))
+            curl = getCurl(url)
+            tvd = getTvd("-o", fileName, "-")
             Log("Downloading: %s From: %s", fileName, url)
             if "LD_LIBRARY_PATH" in environ.keys():
                 del environ["LD_LIBRARY_PATH"]
@@ -430,21 +431,8 @@ def dlThread():
                 unlink("/tmp/cookies.txt")
             except:
                 pass
-            curlp = Popen([
-                curl,
-                url,
-                "--digest",
-                "-s",
-                "-u",
-                "tivo:" + getMyMAC(),
-                "-c", "/tmp/cookies.txt"],
-                stdout=PIPE)
-            tivodecode = Popen([
-                getTvd(),
-                "-m", getMyMAC(),
-                "-o", fileName,
-                "-"],
-                stdin=curlp.stdout)
+            curlp = Popen(curl, stdout=PIPE)
+            tivodecode = Popen(tvd, stdin=curlp.stdout)
             GL_CURL_PID = curlp.pid
             # Wait two seconds for it to get going and then issue
             # a update for the TiVo folder
