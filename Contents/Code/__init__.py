@@ -69,7 +69,10 @@ def getTivoShowsByIPURL(tivoip, url, dir):
         Log("getTivoShowsByIPURL: %s" % qurl)
         try:
             authhandler = urllib2.HTTPDigestAuthHandler()
-            authhandler.add_password("TiVo DVR", "https://" + tivoip + ":443/", "tivo", getMyMAC())
+            authhandler.add_password("TiVo DVR",
+                                     "https://" + tivoip + ":443/",
+                                     "tivo",
+                                     getMyMAC())
             opener = urllib2.build_opener(authhandler)
             pagehandle = opener.open(qurl)
         except IOError, e:
@@ -77,9 +80,11 @@ def getTivoShowsByIPURL(tivoip, url, dir):
             if hasattr(e, "code"):
                 Log("Failed with code : %s" % e.code)
                 if (int(e.code) == 401):
-                    dir.SetMessage("Couldn't authenticate", "Failed to authenticate to tivo.  Is the Media Access Key correct?")
+                    dir.SetMessage("Couldn't authenticate",
+                                   "Failed to authenticate to tivo.  Is the Media Access Key correct?")
                 else:
-                    dir.SetMessage("Couldn't connect", "Failed to connect to tivo")
+                    dir.SetMessage("Couldn't connect",
+                                   "Failed to connect to tivo")
             if hasattr(e, "reason"):
                 Log("Failed with reason : %s" % e.reason)
             return dir
@@ -88,7 +93,8 @@ def getTivoShowsByIPURL(tivoip, url, dir):
             return dir
 
         myetree = etree.parse(pagehandle).getroot()
-        page_total_items = getNameFromXML(myetree, "g:Details/g:TotalItems/text()")
+        page_total_items = getNameFromXML(myetree,
+                                          "g:Details/g:TotalItems/text()")
         if page_total_items != "":
             endanchor = int(page_total_items)
         if anchoroffset == 0:
@@ -98,22 +104,37 @@ def getTivoShowsByIPURL(tivoip, url, dir):
 
         for show in myetree.xpath("g:Item", namespaces={"g": TIVO_XML_NAMESPACE}):
             show_name = getNameFromXML(show, "g:Details/g:Title/text()")
-            show_content_type = getNameFromXML(show, "g:Details/g:ContentType/text()")
+            show_content_type = getNameFromXML(show,
+                                               "g:Details/g:ContentType/text()")
             if (show_content_type == TIVO_CONTENT_FOLDER):
-                show_total_items = int(getNameFromXML(show, "g:Details/g:TotalItems/text()"))
-                show_folder_url = getNameFromXML(show, "g:Links/g:Content/g:Url/text()")
+                show_total_items = int(getNameFromXML(show,
+                                                      "g:Details/g:TotalItems/text()"))
+                show_folder_url = getNameFromXML(show,
+                                                 "g:Links/g:Content/g:Url/text()")
                 show_folder_id = show_folder_url[show_folder_url.rfind("%2F")+3:]
-                dir.add(DirectoryObject(key=Callback(getTivoShows, tivoip=tivoip, url=show_folder_url, showName=show_name), title=L("%s (%s)" % (show_name, show_total_items))))
+                dir.add(DirectoryObject(key=Callback(getTivoShows,
+                                                     tivoip=tivoip,
+                                                     url=show_folder_url,
+                                                     showName=show_name),
+                                        title=L("%s (%s)" % (show_name,
+                                                             show_total_items))))
 
             elif ((show_content_type == TIVO_CONTENT_SHOW_TTS) or
-                        (show_content_type == TIVO_CONTENT_SHOW_PES)) :
-                show_duration = getNameFromXML(show, "g:Details/g:Duration/text()")
-                show_episode_name = getNameFromXML(show,"g:Details/g:EpisodeTitle/text()")
-                show_episode_num = getNameFromXML(show, "g:Details/g:EpisodeNumber/text()")
-                show_desc = getNameFromXML(show, "g:Details/g:Description/text()")
-                show_url = getNameFromXML(show, "g:Links/g:Content/g:Url/text()")
-                show_in_progress = getNameFromXML(show,"g:Details/g:InProgress/text()")
-                show_copyright = getNameFromXML(show, "g:Details/g:CopyProtected/text()")
+                        (show_content_type == TIVO_CONTENT_SHOW_PES)):
+                show_duration = getNameFromXML(show,
+                                               "g:Details/g:Duration/text()")
+                show_episode_name = getNameFromXML(show,
+                                                   "g:Details/g:EpisodeTitle/text()")
+                show_episode_num = getNameFromXML(show,
+                                                  "g:Details/g:EpisodeNumber/text()")
+                show_desc = getNameFromXML(show,
+                                           "g:Details/g:Description/text()")
+                show_url = getNameFromXML(show,
+                                          "g:Links/g:Content/g:Url/text()")
+                show_in_progress = getNameFromXML(show,
+                                                  "g:Details/g:InProgress/text()")
+                show_copyright = getNameFromXML(show,
+                                                "g:Details/g:CopyProtected/text()")
 
                 show_desc = show_desc[:show_desc.rfind("Copyright Tribune Media")]
                 show_id  =  show_url[show_url.rfind("&id=")+4:]
@@ -128,21 +149,22 @@ def getTivoShowsByIPURL(tivoip, url, dir):
                 if show_copyright != "Yes" and show_in_progress != "Yes":
                     localurl = "http://127.0.0.1:" + str(TIVO_PORT) + "/" + base64.b64encode(show_url, "-_")
                     if Prefs["togo"]:
-                        dir.add(DirectoryObject(key=Callback(getShowContainer, url = localurl,
-                                                             show_url = show_url,
-                                                             title = target_name,
-                                                             summary = show_desc,
-                                                             thumb = R("art-default.jpg"),
-                                                             tagline = show_episode_name,
-                                                             duration = show_duration),
+                        dir.add(DirectoryObject(key=Callback(getShowContainer,
+                                                             url=localurl,
+                                                             show_url=show_url,
+                                                             title=target_name,
+                                                             summary=show_desc,
+                                                             thumb=R("art-default.jpg"),
+                                                             tagline=show_episode_name,
+                                                             duration=show_duration),
                                                 title=L(target_name)))
                     else:
-                        dir.add(CreateVideoClipObject(url = localurl,
-                                                      title = target_name,
-                                                      summary = show_desc,
-                                                      thumb = R("art-default.jpg"),
-                                                      tagline = show_episode_name,
-                                                      duration = show_duration))
+                        dir.add(CreateVideoClipObject(url=localurl,
+                                                      title=target_name,
+                                                      summary=show_desc,
+                                                      thumb=R("art-default.jpg"),
+                                                      tagline=show_episode_name,
+                                                      duration=show_duration))
                 else:
                     Log("Found a different content type: " + show_content_type)
         if endanchor == 0 or anchoroffset + offset >= endanchor:
@@ -155,36 +177,39 @@ def getTivoShowsByIPURL(tivoip, url, dir):
 
 ####################################################################################################
 @route("/video/tivotogo/createvideoclipobject", container=bool, duration=int)
-def CreateVideoClipObject(url, title, thumb, container = False, summary="", duration=14400000, tagline=""):
+def CreateVideoClipObject(url, title, thumb, container=False, summary="", duration=14400000, tagline=""):
     Log.Debug("Starting a thread")
     thread.start_new_thread(TivoServerThread, ("127.0.0.1", TIVO_PORT))
     Log.Debug("Done Starting a thread")
     vco = VideoClipObject(
-        key = Callback(CreateVideoClipObject, url = url, title = title, thumb = thumb,
-                       tagline = tagline,
-                       summary = summary,
-                       container = True,
-                       duration = duration),
-        rating_key = url,
-        title = title,
-        thumb = thumb,
-        summary = summary,
-        tagline = tagline,
-        duration = int(duration),
-        items = [
+        key=Callback(CreateVideoClipObject,
+                     url=url,
+                     title=title,
+                     thumb=thumb,
+                     tagline=tagline,
+                     summary=summary,
+                     container=True,
+                     duration=duration),
+        rating_key=url,
+        title=title,
+        thumb=thumb,
+        summary=summary,
+        tagline=tagline,
+        duration=int(duration),
+        items=[
             MediaObject(
-                parts = [
+                parts=[
                     PartObject(
-                        key = url
+                        key=url
                     )
                 ],
-                optimized_for_streaming = True
+                optimized_for_streaming=True
             )
         ]
     )
 
     if container:
-        return ObjectContainer(objects = [vco])
+        return ObjectContainer(objects=[vco])
 
     return vco
 
@@ -285,8 +310,17 @@ class MyVideoHandler(BaseHTTPRequestHandler):
       Log.Debug(" PIPED to: %s %s %s %s" % (tvd, "-m", getMyMAC(), "-"))
       if "LD_LIBRARY_PATH" in environ.keys():
         del environ["LD_LIBRARY_PATH"]
-      curlp = Popen([curl, url, "--digest", "-s", "-u", "tivo:"+getMyMAC(), "-c", "/tmp/cookies.txt"], stdout=PIPE)
-      tivodecode = Popen([tvd, "-m", getMyMAC(), "-"],stdin=curlp.stdout, stdout=PIPE)
+      curlp = Popen([
+          curl,
+          url,
+          "--digest",
+          "-s",
+          "-u", "tivo:" + getMyMAC(),
+          "-c", "/tmp/cookies.txt"],
+          stdout=PIPE)
+      tivodecode = Popen([tvd, "-m", getMyMAC(), "-"],
+                         stdin=curlp.stdout,
+                         stdout=PIPE)
       Log("Starting decoder")
       while True:
           data = tivodecode.stdout.read(4192)
@@ -336,27 +370,32 @@ def TivoVideo(count, pathNouns):
 @route("/video/tivotogo/showcontainer")
 def getShowContainer(url, show_url, title, summary, thumb, tagline, duration):
     oc = ObjectContainer(title2=L(title))
-    oc.add(CreateVideoClipObject(url = url,
-                                 title = title,
-                                 summary = summary,
-                                 thumb = R("art-default.jpg"),
-                                 tagline = tagline,
-                                 duration = duration))
-    oc.add(DirectoryObject(key = Callback(downloadLocal, url=show_url, title=title), title = "Download Locally"))
+    oc.add(CreateVideoClipObject(url=url,
+                                 title=title,
+                                 summary=summary,
+                                 thumb=R("art-default.jpg"),
+                                 tagline=tagline,
+                                 duration=duration))
+    oc.add(DirectoryObject(key=Callback(downloadLocal,
+                                        url=show_url,
+                                        title=title),
+                           title="Download Locally"))
     return oc
 
 
 ####################################################################################################
 def UpdateTTGFolder():
     try:
-        sections = XML.ElementFromURL(SECTIONS % (HOST), cacheTime=0).xpath("//Directory")
+        sections = XML.ElementFromURL(SECTIONS % (HOST),
+                                      cacheTime=0).xpath("//Directory")
         togoupdatedir = Prefs["togoupdatedir"] or "TiVo To Go"
         for section in sections:
             key = section.get("key")
             title = section.get("title")
             if title == togoupdatedir:
                 Log.Info("Updating Library #%s - %s" % (key, title))
-                HTTP.Request(SECTIONS % (HOST) + key + "/refresh", cacheTime=0).content
+                HTTP.Request(SECTIONS % (HOST) + key + "/refresh",
+                             cacheTime=0).content
     except Exception, e:
         Log("Error Updating TTG Folder: %s" % e)
 
@@ -375,8 +414,15 @@ def dlThread():
         try:
             tvd = getTvd()
             curl = getCurl()
-            Log.Debug("CMD: %s \"%s\" %s %s %s %s %s %s" % (curl, url, "--digest", "-s", "-u", "tivo:"+getMyMAC(), "-c", "/tmp/cookies.txt"))
-            Log.Debug(" PIPED to: \"%s\" %s %s %s \"%s\" %s" % (tvd, "-m", getMyMAC(), "-o", fileName, "-"))
+            Log.Debug("CMD: %s \"%s\" %s %s %s %s %s %s" % (
+                curl,
+                url,
+                "--digest",
+                "-s",
+                "-u", "tivo:" + getMyMAC(),
+                "-c", "/tmp/cookies.txt"))
+            Log.Debug(" PIPED to: \"%s\" %s %s %s \"%s\" %s" % (
+                tvd, "-m", getMyMAC(), "-o", fileName, "-"))
             Log("Downloading: %s From: %s", fileName, url)
             if "LD_LIBRARY_PATH" in environ.keys():
                 del environ["LD_LIBRARY_PATH"]
@@ -384,10 +430,24 @@ def dlThread():
                 unlink("/tmp/cookies.txt")
             except:
                 pass
-            curlp = Popen([curl, url, "--digest", "-s", "-u", "tivo:"+getMyMAC(), "-c", "/tmp/cookies.txt"], stdout=PIPE)
-            tivodecode = Popen([getTvd(), "-m", getMyMAC(), "-o", fileName, "-"], stdin=curlp.stdout)
+            curlp = Popen([
+                curl,
+                url,
+                "--digest",
+                "-s",
+                "-u",
+                "tivo:" + getMyMAC(),
+                "-c", "/tmp/cookies.txt"],
+                stdout=PIPE)
+            tivodecode = Popen([
+                getTvd(),
+                "-m", getMyMAC(),
+                "-o", fileName,
+                "-"],
+                stdin=curlp.stdout)
             GL_CURL_PID = curlp.pid
-            # Wait two seconds for it to get going and then issue a update for the TiVo folder
+            # Wait two seconds for it to get going and then issue
+            # a update for the TiVo folder
             sleep(2)
             UpdateTTGFolder()
             tivodecode.wait()
@@ -410,7 +470,9 @@ def downloadLocal(url, title):
     global DL_QUEUE
     ttgdir = Prefs["togodir"]
     if not ttgdir:
-        return ObjectContainer(header="Error", message="TiVo To Go Download Directory is not available from the preferences.", title2="ERROR: No TTG Directory")
+        return ObjectContainer(header="Error",
+                               message="TiVo To Go Download Directory is not available from the preferences.",
+                               title2="ERROR: No TTG Directory")
     try:
         pth = path.join(ttgdir, "tmp.txt")
         f = open(pth, O_CREAT | O_RDWR)
@@ -419,14 +481,17 @@ def downloadLocal(url, title):
         unlink(pth)
     except Exception, e:
         Log("TTG Exception: %s" % e)
-        return ObjectContainer(header="Error", message="TiVo To Go Download Directory is not writeable", title2="ERROR: Cannot Write to TTG dir")
+        return ObjectContainer(header="Error",
+                               message="TiVo To Go Download Directory is not writeable",
+                               title2="ERROR: Cannot Write to TTG dir")
 
     Log("URL: %s" % url)
     Log("Title: %s" % title)
 
     try:
         if sys.platform == "win32":
-            valid_chars = list("-_.() %s%s" % (string.ascii_letters, string.digits))
+            valid_chars = list("-_.() %s%s" % (string.ascii_letters,
+                                               string.digits))
             title = "".join(c for c in list(title) if c in valid_chars)
         fileName = path.join(ttgdir, title + ".mpg")
         jobs = copy.deepcopy(DL_QUEUE)
@@ -509,7 +574,11 @@ def discoverTiVo(oc):
                 url_path = s.getProperties()["path"]
                 url = "%s://%s:%s%s" % (url_proto, addr, port, url_path)
                 Log("Found TiVo URL %s" % url)
-                oc.add(DirectoryObject(key=Callback(getTivoShows, tivoName=tivoName, url=url, tivoip=addr), title=L(tivoName)))
+                oc.add(DirectoryObject(key=Callback(getTivoShows,
+                                                    tivoName=tivoName,
+                                                    url=url,
+                                                    tivoip=addr),
+                                       title=L(tivoName)))
             except Exception, e:
                 Log("Error finding Tivo: %s" % e)
                 pass
@@ -545,14 +614,25 @@ def getStatus(rand, execkill=0):
     if DownloadThread and jobs:
         if jobs:
             (fileName, url) = jobs.popleft()
-            oc.add(DirectoryObject(key = Callback(getStatus, rand=str(Util.Random())), title = "Running: %s" % fileName))
+            oc.add(DirectoryObject(key=Callback(getStatus,
+                                                rand=str(Util.Random())),
+                                                title="Running: %s" % fileName))
         while jobs:
             (fileName, url) = jobs.popleft()
-            oc.add(DirectoryObject(key = Callback(getStatus, rand=str(Util.Random())), title = "Queued: %s" % fileName))
-        oc.add(DirectoryObject(key = Callback(getStatus, rand=str(Util.Random()), execkill = 1), title = "Kill Current Job..."))
+            oc.add(DirectoryObject(key=Callback(getStatus,
+                                                rand=str(Util.Random())),
+                                                title="Queued: %s" % fileName))
+        oc.add(DirectoryObject(key=Callback(getStatus,
+                                            rand=str(Util.Random()),
+                                            execkill=1),
+                                            title="Kill Current Job..."))
     else:
-        oc.add(DirectoryObject(key = Callback(getStatus, rand=str(Util.Random())), title = "Job Queue Empty"))
-    oc.add(DirectoryObject(key = Callback(getStatus, rand=str(Util.Random())), title = "Refresh"))
+        oc.add(DirectoryObject(key=Callback(getStatus,
+                                            rand=str(Util.Random())),
+                                            title="Job Queue Empty"))
+    oc.add(DirectoryObject(key=Callback(getStatus,
+                                        rand=str(Util.Random())),
+                                        title="Refresh"))
     return oc
 
 
@@ -569,10 +649,15 @@ def MainMenu():
         if tivoName == "":
             discoverTiVo(oc)
         else:
-            oc.add(DirectoryObject(key=Callback(getTivoShows, tivoName=tivoName, tivoip=tivoName), title=L(tivoName)))
+            oc.add(DirectoryObject(key=Callback(getTivoShows,
+                                                tivoName=tivoName,
+                                                tivoip=tivoName),
+                                   title=L(tivoName)))
     global DownloadThread
     if DownloadThread:
-        oc.add(DirectoryObject(key = Callback(getStatus, rand=str(Util.Random())), title = "Active Downloads"))
+        oc.add(DirectoryObject(key=Callback(getStatus,
+                                            rand=str(Util.Random())),
+                                            title="Active Downloads"))
     oc.add(PrefsObject(title=L("Preferences...")))
 
     return oc
