@@ -81,7 +81,8 @@ def getTivoShowsByIPURL(tivoip, url, dir):
                 Log("Failed with code : %s" % e.code)
                 if (int(e.code) == 401):
                     dir.SetMessage("Couldn't authenticate",
-                                   "Failed to authenticate to tivo.  Is the Media Access Key correct?")
+                                   "Failed to authenticate to tivo.  Is the"
+                                   " Media Access Key correct?")
                 else:
                     dir.SetMessage("Couldn't connect",
                                    "Failed to connect to tivo")
@@ -119,25 +120,17 @@ def getTivoShowsByIPURL(tivoip, url, dir):
                                         title=L("%s (%s)" % (show_name,
                                                              show_total_items))))
 
-            elif ((show_content_type == TIVO_CONTENT_SHOW_TTS) or
-                        (show_content_type == TIVO_CONTENT_SHOW_PES)):
-                show_duration = getNameFromXML(show,
-                                               "g:Details/g:Duration/text()")
-                show_episode_name = getNameFromXML(show,
-                                                   "g:Details/g:EpisodeTitle/text()")
-                show_episode_num = getNameFromXML(show,
-                                                  "g:Details/g:EpisodeNumber/text()")
-                show_desc = getNameFromXML(show,
-                                           "g:Details/g:Description/text()")
-                show_url = getNameFromXML(show,
-                                          "g:Links/g:Content/g:Url/text()")
-                show_in_progress = getNameFromXML(show,
-                                                  "g:Details/g:InProgress/text()")
-                show_copyright = getNameFromXML(show,
-                                                "g:Details/g:CopyProtected/text()")
+            elif show_content_type in (TIVO_CONTENT_SHOW_TTS, TIVO_CONTENT_SHOW_PES):
+                show_duration = getNameFromXML(show, "g:Details/g:Duration/text()")
+                show_episode_name = getNameFromXML(show,"g:Details/g:EpisodeTitle/text()")
+                show_episode_num = getNameFromXML(show, "g:Details/g:EpisodeNumber/text()")
+                show_desc = getNameFromXML(show, "g:Details/g:Description/text()")
+                show_url = getNameFromXML(show, "g:Links/g:Content/g:Url/text()")
+                show_in_progress = getNameFromXML(show,"g:Details/g:InProgress/text()")
+                show_copyright = getNameFromXML(show, "g:Details/g:CopyProtected/text()")
 
                 show_desc = show_desc[:show_desc.rfind("Copyright Tribune Media")]
-                show_id  =  show_url[show_url.rfind("&id=")+4:]
+                show_id = show_url[show_url.rfind("&id=")+4:]
                 if (show_episode_num != ""):
                     show_season_num = show_episode_num[:-2]
                     show_season_ep_num = show_episode_num[-2:]
@@ -307,6 +300,32 @@ def getCurl(url):
 
 
 ################################################################################
+def curl(*args):
+    """Return argv for curl sub-command."""
+    curl_argv = [
+        getCurl(),
+        "--digest",
+        "-s",
+        "-u", "tivo:" + getMyMAC(),
+        "-c", "/tmp/cookies.txt",
+    ] + list(args)
+    Log.Debug("CMD: %s" % " ".join(curl_argv))
+    return curl_argv
+
+
+################################################################################
+def tivodecode(*args):
+    """Return argv for tivodecode sub-command."""
+    tivodecode_argv = [
+      getTvd(),
+      "-m",
+      getMyMAC(),
+    ] + list(args)
+    Log.Debug(" PIPED to: %s" % " ".join(tivodecode_argv))
+    return tivodecode_argv
+
+
+################################################################################
 class MyVideoHandler(BaseHTTPRequestHandler):
 
   def do_HEAD(self):
@@ -326,14 +345,14 @@ class MyVideoHandler(BaseHTTPRequestHandler):
           self.send_response(200)
       self.send_header("Content-type", "video/mpeg2")
       self.end_headers()
-      curlp = Popen(getCurl(url), stdout=PIPE)
-      tvd = getTvd("-")
+      curl_child = Popen(getCurl(url), stdout=PIPE)
+      tvd_argv = getTvd("-")
       if "LD_LIBRARY_PATH" in environ.keys():
         del environ["LD_LIBRARY_PATH"]
-      tivodecode = Popen(tvd, stdin=curlp.stdout, stdout=PIPE)
+      tivodecode_child = Popen(tvd_argv, stdin=curl_child.stdout, stdout=PIPE)
       Log("Starting decoder")
       while True:
-          data = tivodecode.stdout.read(4192)
+          data = tivodecode_child.stdout.read(4192)
           if not data:
               break
           self.wfile.write(data)
@@ -342,8 +361,8 @@ class MyVideoHandler(BaseHTTPRequestHandler):
       Log("Unexpected error: %s" % e)
 
     try:
-      kill(curlp.pid, SIGTERM)
-      kill(tivodecode.pid, SIGTERM)
+      kill(curl_child.pid, SIGTERM)
+      kill(tivodecode_child.pid, SIGTERM)
     except:
       Log("Self-exit of tivodecode/curl")
 
@@ -422,8 +441,8 @@ def dlThread():
         else:
             break
         try:
-            curl = getCurl(url)
-            tvd = getTvd("-o", fileName, "-")
+            curl_argv = getCurl(url)
+            tvd_argv = getTvd("-o", fileName, "-")
             Log("Downloading: %s From: %s", fileName, url)
             if "LD_LIBRARY_PATH" in environ.keys():
                 del environ["LD_LIBRARY_PATH"]
@@ -431,15 +450,15 @@ def dlThread():
                 unlink("/tmp/cookies.txt")
             except:
                 pass
-            curlp = Popen(curl, stdout=PIPE)
-            tivodecode = Popen(tvd, stdin=curlp.stdout)
-            GL_CURL_PID = curlp.pid
+            curl_child = Popen(curl_argv, stdout=PIPE)
+            tivodecode_child = Popen(tvd_argv, stdin=curl_child.stdout)
+            GL_CURL_PID = curl_child.pid
             # Wait two seconds for it to get going and then issue
             # a update for the TiVo folder
             sleep(2)
             UpdateTTGFolder()
-            tivodecode.wait()
-            kill(curlp.pid, SIGTERM)
+            tivodecode_child.wait()
+            kill(curl_child.pid, SIGTERM)
             sleep(1)
         except Exception, e:
             Log("Error in Download Thread: %s" % e)
